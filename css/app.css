@@ -263,3 +263,14 @@ dialog::backdrop { background: rgba(28, 31, 29, .45); }
 @media (max-width: 720px) { .toast { bottom: 88px; } }
 
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* ---------- Výběr podniku s vyhledáváním ---------- */
+.picker-search { display: flex; flex-direction: column; gap: 6px; }
+.picker-search input { width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); }
+.picker-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.picker-item { display: flex; flex-direction: column; gap: 1px; padding: 9px 12px; min-height: 44px; justify-content: center; cursor: pointer; }
+.picker-item + .picker-item { border-top: 1px solid var(--line); }
+.picker-item:hover { background: var(--ground); }
+.picker-item.active { background: var(--accent-tint); }
+.picker-empty { padding: 10px 12px; }
+.picker-chosen { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 10px; }

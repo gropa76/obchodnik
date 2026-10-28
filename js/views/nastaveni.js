@@ -89,6 +89,6 @@
         h('div', { class: 'card prose' },
           h('p', { text: 'Data jsou zašifrovaná a uložená jen v tomto prohlížeči na tomto počítači. Nic se neposílá na internet.' }),
           h('p', { text: 'Pozor: když v prohlížeči smažeš data webů (historii včetně „souborů cookie a dat webů“) pro adresu appky, data appky zmizí. Šifrovaná záloha přijde v další fázi.' }),
-          h('p', { class: 'muted small', text: 'Verze 0.1 · fáze 1' }))));
+          h('p', { class: 'muted small', text: 'Verze 0.2 · fáze 1' }))));
   };
 })(window.App);

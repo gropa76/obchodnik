@@ -15,6 +15,107 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   };
 
+  // ---------- Výběr podniku s vyhledáváním ----------
+  // f.options: [{ value, label, sub, first }] – first = podnik z oblasti dne (řadí se nahoru)
+  // Vrací { el, value, focus } – formulář s ním pracuje jako s běžným polem.
+  const MAX_SHOWN = 8;
+  function podnikPicker(f, id) {
+    const items = f.options.map((o) => Object.assign({ key: U.normalize(o.label + ' ' + (o.sub || '')) }, o));
+    let value = f.value || '';
+    let shown = [];
+    let active = 0;
+
+    const input = h('input', {
+      id, type: 'search', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'search',
+      placeholder: 'Piš název, obec nebo ulici', role: 'combobox',
+      'aria-autocomplete': 'list', 'aria-controls': id + '-list', 'aria-expanded': 'true',
+    });
+    const list = h('ul', { id: id + '-list', class: 'picker-list', role: 'listbox', 'aria-label': 'Nalezené podniky' });
+    const more = h('p', { class: 'hint' });
+    const searchBox = h('div', { class: 'picker-search' }, input, list, more);
+    const chosen = h('div', { class: 'picker-chosen' });
+    const el = h('div', { class: 'picker' }, chosen, searchBox);
+
+    const choose = (v) => {
+      value = v;
+      draw();
+      // Po výběru přeskočit na další pole formuláře.
+      let f2 = el.closest('.field');
+      while (f2 && (f2 = f2.nextElementSibling)) {
+        const t = f2.querySelector('input, textarea, select');
+        if (t) { t.focus(); return; }
+      }
+      const btn = chosen.querySelector('button');
+      if (btn) btn.focus();
+    };
+
+    const filter = () => {
+      const words = U.normalize(input.value).split(/\s+/).filter(Boolean);
+      const hits = items.filter((it) => words.every((w) => it.key.includes(w)));
+      hits.sort((a, b) => (b.first ? 1 : 0) - (a.first ? 1 : 0) || a.label.localeCompare(b.label, 'cs'));
+      return hits;
+    };
+
+    const drawList = () => {
+      const hits = filter();
+      shown = hits.slice(0, MAX_SHOWN);
+      if (active >= shown.length) active = 0;
+      list.replaceChildren(...(shown.length
+        ? shown.map((it, i) => h('li', {
+          id: id + '-o' + i, role: 'option', class: 'picker-item' + (i === active ? ' active' : ''),
+          'aria-selected': i === active ? 'true' : 'false',
+          onmousedown: (e) => e.preventDefault(),
+          onclick: () => choose(it.value),
+        },
+          h('span', { class: 'item-title', text: it.label }),
+          h('span', { class: 'muted small', text: [it.first ? 'oblast dne' : null, it.sub].filter(Boolean).join(' · ') })))
+        : [h('li', { class: 'picker-empty muted', text: items.length ? 'Nic nenalezeno.' : 'Zatím nemáš žádné podniky.' })]));
+      input.setAttribute('aria-activedescendant', shown.length ? id + '-o' + active : '');
+      more.textContent = hits.length > MAX_SHOWN ? `a ${hits.length - MAX_SHOWN} dalších – upřesni hledání` : '';
+    };
+
+    const draw = () => {
+      const it = items.find((x) => x.value === value);
+      if (it) {
+        chosen.hidden = false;
+        searchBox.hidden = true;
+        chosen.replaceChildren(
+          h('span', { class: 'item-body' },
+            h('span', { class: 'item-title', text: it.label }),
+            it.sub ? h('span', { class: 'muted small', text: it.sub }) : null),
+          h('button', {
+            type: 'button', class: 'btn small', text: 'Změnit',
+            onclick: () => { value = ''; input.value = ''; active = 0; draw(); input.focus(); },
+          }));
+      } else {
+        value = '';
+        chosen.hidden = true;
+        searchBox.hidden = false;
+        drawList();
+      }
+    };
+
+    input.addEventListener('input', () => { active = 0; drawList(); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!shown.length) return;
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length;
+        drawList();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (shown.length) choose(shown[active].value);
+      }
+    });
+
+    draw();
+    return {
+      el,
+      get value() { return value; },
+      focus: () => (value ? chosen.querySelector('button') : input).focus(),
+    };
+  }
+
   // ---------- Formulář v dialogu ----------
   // fields: [{ name, label, type, required, value, options, hint, placeholder, autocomplete }]
   // Vrací Promise s hodnotami, nebo null při zrušení.
@@ -64,6 +165,13 @@
                 h('span', { text: o.label }))));
           inputs[f.name] = input;
           return h('div', { class: 'field' }, h('span', { class: 'label', id: id + '-l', text: f.label }), input, f.hint ? h('p', { class: 'hint', text: f.hint }) : null);
+        } else if (f.type === 'podnik') {
+          const picker = podnikPicker(f, id);
+          inputs[f.name] = picker;
+          return h('div', { class: 'field' },
+            h('label', { for: id, class: 'label' }, f.label, f.required ? h('span', { class: 'req', 'aria-hidden': 'true', text: ' *' }) : null),
+            picker.el,
+            f.hint ? h('p', { class: 'hint', text: f.hint }) : null);
         } else if (f.type === 'checkbox') {
           input = h('input', { id, type: 'checkbox', name: f.name, checked: !!f.value, required: f.required });
           inputs[f.name] = input;
@@ -197,19 +305,13 @@
     return saved;
   };
 
+  // Podniky pro vyhledávací výběr. Podniky z oblastí daného dne jdou nahoru.
   const podnikOptions = (iso) => {
     const dne = new Set(iso ? App.model.oblastiDne(iso).map((o) => o.id) : []);
-    const all = App.model.podniky();
-    const first = all.filter((p) => dne.has(p.oblastId));
-    const rest = all.filter((p) => !dne.has(p.oblastId));
-    const out = [{ value: '', label: '— vyber podnik —' }];
-    if (first.length) {
-      first.forEach((p) => out.push({ value: p.id, label: p.nazev, group: 'Oblasti tohoto dne' }));
-      rest.forEach((p) => out.push({ value: p.id, label: p.nazev, group: 'Ostatní' }));
-    } else {
-      rest.forEach((p) => out.push({ value: p.id, label: p.nazev }));
-    }
-    return out;
+    return App.model.podniky().map((p) => {
+      const o = App.model.oblast(p.oblastId);
+      return { value: p.id, label: p.nazev, sub: [p.adresa, o ? o.nazev : null].filter(Boolean).join(' · '), first: dne.has(p.oblastId) };
+    });
   };
 
   A.naplanovatNavstevu = async (datum, podnikId) => {
@@ -220,7 +322,7 @@
     const v = await UI.form({
       title: 'Naplánovat návštěvu',
       fields: [
-        { name: 'podnikId', label: 'Podnik', type: 'select', required: true, options: podnikOptions(datum), value: podnikId || '' },
+        { name: 'podnikId', label: 'Podnik', type: 'podnik', required: true, options: podnikOptions(datum), value: podnikId || '' },
         { name: 'datum', label: 'Datum', type: 'date', required: true, value: datum || U.today() },
         { name: 'cas', label: 'Čas (nepovinné)', type: 'time' },
       ],
@@ -242,7 +344,7 @@
       const v = await UI.form({
         title: 'Upravit návštěvu',
         fields: [
-          { name: 'podnikId', label: 'Podnik', type: 'select', required: true, options: podnikOptions(e.datum), value: e.podnikId },
+          { name: 'podnikId', label: 'Podnik', type: 'podnik', required: true, options: podnikOptions(e.datum), value: e.podnikId },
           { name: 'datum', label: 'Datum', type: 'date', required: true, value: e.datum },
           { name: 'cas', label: 'Čas (nepovinné)', type: 'time', value: e.cas },
         ],
@@ -251,13 +353,12 @@
       const moved = v.datum !== e.datum;
       return App.store.save(Object.assign({}, e, v, moved ? { poradi: App.model.dalsiPoradi(v.datum), stav: 'planovano' } : {}));
     }
-    const opts = [{ value: '', label: 'Bez podniku' }].concat(App.model.podniky().map((p) => ({ value: p.id, label: p.nazev })));
     const v = await UI.form({
       title: isNew ? 'Schůzka nebo akce' : 'Upravit',
       fields: [
         { name: 'typ', label: 'Typ', type: 'select', options: [{ value: 'schuzka', label: 'Schůzka' }, { value: 'akce', label: 'Akce (ochutnávka, festival…)' }], value: e.typ },
         { name: 'nazev', label: 'Název', required: true, value: e.nazev, placeholder: 'Např. schůzka s majitelem' },
-        { name: 'podnikId', label: 'Podnik', type: 'select', options: opts, value: e.podnikId || '' },
+        { name: 'podnikId', label: 'Podnik (nepovinné)', type: 'podnik', options: podnikOptions(e.datum || datum), value: e.podnikId || '' },
         { name: 'datum', label: 'Datum', type: 'date', required: true, value: e.datum || datum || U.today() },
         { name: 'cas', label: 'Čas', type: 'time', value: e.cas },
       ],
@@ -275,9 +376,9 @@
     n = n || Object.assign({ datum: U.today() }, ctx);
     const fields = [{ name: 'text', label: 'Poznámka', type: 'textarea', required: true, value: n.text }];
     if (!n.udalostId) {
-      fields.push({ name: 'podnikId', label: 'Podnik (nepovinné)', type: 'select',
-        options: [{ value: '', label: 'Bez podniku' }].concat(App.model.podniky().map((p) => ({ value: p.id, label: p.nazev }))),
-        value: n.podnikId || '' });
+      fields.push({ name: 'podnikId', label: 'Podnik (nepovinné)', type: 'podnik',
+        options: podnikOptions(n.datum), value: n.podnikId || '',
+        hint: 'Nech prázdné pro poznámku ke dni.' });
     }
     fields.push(
       { name: 'datum', label: 'Datum poznámky', type: 'date', required: true, value: n.datum },
