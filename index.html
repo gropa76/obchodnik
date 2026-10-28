@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1C1F1D">
+<title>Obchodník</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <nav id="nav" class="nav" aria-label="Hlavní menu" hidden>
+    <span class="nav-brand">Obchodník</span>
+    <a class="nav-link" data-section="kalendar" href="#/den">Kalendář</a>
+    <a class="nav-link" data-section="podniky" href="#/podniky">Podniky</a>
+    <a class="nav-link" data-section="poznamky" href="#/poznamky">Poznámky</a>
+    <a class="nav-link" data-section="nastaveni" href="#/nastaveni">Nastavení</a>
+    <button id="lock-btn" class="nav-lock" type="button">Zamknout</button>
+  </nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<dialog id="dlg" aria-modal="true"></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="js/util.js"></script>
+<script src="js/crypto.js"></script>
+<script src="js/db.js"></script>
+<script src="js/store.js"></script>
+<script src="js/model.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/views/lock.js"></script>
+<script src="js/views/kalendar.js"></script>
+<script src="js/views/podniky.js"></script>
+<script src="js/views/poznamky.js"></script>
+<script src="js/views/nastaveni.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
