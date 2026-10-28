@@ -2,7 +2,7 @@
 // Service worker: appka se načte i bez internetu.
 // Ukládá jen soubory appky, nikdy data (ta jsou zašifrovaná v IndexedDB).
 // Při každé změně souborů zvyš číslo verze, aby se načetly nové.
-const VERSION = 'obchodnik-v0.2.0';
+const VERSION = 'obchodnik-v0.3.0';
 const FILES = [
   './',
   'index.html',
@@ -41,8 +41,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  // cache: 'no-cache' = vždy se zeptat serveru, jestli není nová verze (bez čekání na paměť prohlížeče).
   event.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
