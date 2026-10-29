@@ -47,6 +47,20 @@ window.App = window.App || {};
   U.formatDateLong = (iso) => `${U.DNY_DLOUHE[U.weekday(iso) - 1]} ${U.formatDate(iso)}`;
   U.formatDateShort = (iso) => `${U.DNY[U.weekday(iso) - 1]} ${U.formatDate(iso)}`;
 
+  // Den a měsíc bez roku: 'MM-DD' <-> "1. 3."
+  U.formatMD = (md) => `${Number(md.slice(3))}. ${Number(md.slice(0, 2))}.`;
+  U.parseMD = (s) => {
+    const m = String(s).trim().match(/^(\d{1,2})\s*\.\s*(\d{1,2})\s*\.?$/);
+    if (!m) return null;
+    const d = Number(m[1]);
+    const mo = Number(m[2]);
+    const max = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+    if (!max || d < 1 || d > max) return null;
+    return `${U.pad(mo)}-${U.pad(d)}`;
+  };
+
+  U.sudyText = (n) => `${n} ${n === 1 ? 'sud' : n >= 2 && n <= 4 ? 'sudy' : 'sudů'}`;
+
   U.plural = (n, one, few, many) => {
     if (n === 1) return one;
     if (n >= 2 && n <= 4) return few;

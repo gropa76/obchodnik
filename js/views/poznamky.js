@@ -9,7 +9,7 @@
   const V = (App.views = App.views || {});
   const run = UI.run;
 
-  const state = { q: '', filtr: 'vse' };
+  const state = { q: '', filtr: 'vse', stitek: '' };
 
   V.poznamky = () => {
     const all = M.poznamky();
@@ -19,7 +19,8 @@
       const q = U.normalize(state.q);
       const items = all.filter((n) => {
         const p = M.podnik(n.podnikId);
-        if (q && !U.normalize(n.text + ' ' + (p ? p.nazev : '')).includes(q)) return false;
+        if (q && !U.normalize((n.text || '') + ' ' + (n.stitky || []).join(' ') + ' ' + (p ? p.nazev : '')).includes(q)) return false;
+        if (state.stitek && !(n.stitky || []).includes(state.stitek)) return false;
         if (state.filtr === 'pripominky') return n.pripominka && !n.pripominkaHotova;
         if (state.filtr === 'podniky') return !!n.podnikId;
         if (state.filtr === 'dny') return !n.podnikId;
@@ -35,7 +36,8 @@
                 p ? ' · ' : null,
                 p ? h('a', { href: '#/podnik/' + p.id, text: p.nazev }) : null,
                 n.udalostId ? ' · k návštěvě' : null),
-              h('p', { class: 'item-text pre', text: n.text }),
+              UI.noteTags(n),
+              n.text ? h('p', { class: 'item-text pre', text: n.text }) : null,
               n.pripominka
                 ? UI.chip((n.pripominkaHotova ? 'vyřízeno ' : 'připomenout ') + U.formatDate(n.pripominka),
                   !n.pripominkaHotova && n.pripominka < U.today() ? 'hot' : 'accent')
@@ -53,6 +55,11 @@
         h('span', { class: 'sr-only', text: 'Hledat v poznámkách' }),
         h('input', { type: 'search', placeholder: 'Hledat v poznámkách', value: state.q,
           oninput: (e) => { state.q = e.target.value; render(); } })),
+      h('label', { class: 'select-inline' },
+        h('span', { class: 'sr-only', text: 'Štítek' }),
+        h('select', { value: state.stitek, onchange: (e) => { state.stitek = e.target.value; render(); } },
+          h('option', { value: '', text: 'Všechny štítky' }),
+          [...new Set(M.stitky().concat(...all.map((n) => n.stitky || [])))].map((t) => h('option', { value: t, text: t })))),
       h('div', { class: 'pills', role: 'group', 'aria-label': 'Filtr' },
         tabs.map(([k, label]) => h('button', {
           class: 'pill' + (state.filtr === k ? ' active' : ''),

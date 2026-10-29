@@ -254,6 +254,29 @@
 
   UI.chip = (text, kind) => h('span', { class: 'chip' + (kind ? ' ' + kind : ''), text });
 
+  // Štítky poznámky jako řada čipů (nebo null).
+  UI.noteTags = (n) => (n.stitky && n.stitky.length
+    ? h('span', { class: 'tags' }, n.stitky.map((t) => UI.chip(t, 'tag')))
+    : null);
+
+  // Speciály k nabídnutí u podniku: tlačítko „Nabídnout: X“ – po ťuknutí se pro letošek odškrtne.
+  UI.specialyChips = (p, iso) => {
+    const list = App.model.specialyKNabidnuti(p, iso || U.today());
+    if (!list.length) return null;
+    return h('span', { class: 'tags' }, list.map((sp) =>
+      h('button', {
+        type: 'button', class: 'chip special', title: 'Ťukni, až ho nabídneš',
+        onclick: UI.run(async () => {
+          await App.model.oznacitNabidnuto(p, sp, iso || U.today(), true);
+          UI.toast(`${sp.nazev}: nabídnuto (${p.nazev})`);
+        }),
+      }, 'Nabídnout: ' + sp.nazev + ' ✓',
+      (() => {
+        const loni = App.model.sudy(p, sp, App.model.sezonaRok(sp, iso || U.today()) - 1);
+        return loni != null ? h('span', { class: 'chip-sub', text: ' · loni ' + U.sudyText(loni) }) : null;
+      })())));
+  };
+
   UI.segmented = (active, iso) =>
     h('nav', { class: 'segmented', 'aria-label': 'Pohled kalendáře' },
       [['den', 'Den', '#/den/' + iso], ['tyden', 'Týden', '#/tyden/' + U.mondayOf(iso)], ['mesic', 'Měsíc', '#/mesic/' + iso.slice(0, 7)]]
@@ -297,7 +320,12 @@
         { name: 'kontakt', label: 'Kontaktní osoba', value: p.kontakt },
         { name: 'telefon', label: 'Telefon', type: 'tel', value: p.telefon },
         { name: 'crm', label: 'Číslo zákazníka v CRM', value: p.crm },
-      ],
+        App.model.specialy().length
+          ? { name: 'specialy', label: 'Speciály, které podniku nabízíš', type: 'checkboxes',
+            options: App.model.specialy().map((s) => ({ value: s.id, label: `${s.nazev} (${U.formatMD(s.od)} – ${U.formatMD(s.do)})` })),
+            value: p.specialy || [], hint: 'Každý rok v daném období se připomenou u podniku a v kalendáři.' }
+          : null,
+      ].filter(Boolean),
     });
     if (!v) return null;
     const saved = await App.store.save(Object.assign({}, p, v, { type: 'podnik' }));
@@ -374,7 +402,12 @@
   A.upravitPoznamku = async (n, ctx) => {
     const isNew = !n;
     n = n || Object.assign({ datum: U.today() }, ctx);
-    const fields = [{ name: 'text', label: 'Poznámka', type: 'textarea', required: true, value: n.text }];
+    const stitky = App.model.stitky();
+    (n.stitky || []).forEach((t) => { if (!stitky.includes(t)) stitky.push(t); });
+    const fields = [
+      { name: 'stitky', label: 'Štítky', type: 'checkboxes', options: stitky.map((t) => ({ value: t, label: t })), value: n.stitky || [] },
+      { name: 'text', label: 'Poznámka', type: 'textarea', value: n.text, hint: 'Stačí i jen štítek bez textu.' },
+    ];
     if (!n.udalostId) {
       fields.push({ name: 'podnikId', label: 'Podnik (nepovinné)', type: 'podnik',
         options: podnikOptions(n.datum), value: n.podnikId || '',
@@ -384,7 +417,10 @@
       { name: 'datum', label: 'Datum poznámky', type: 'date', required: true, value: n.datum },
       { name: 'pripominka', label: 'Připomenout dne (nepovinné)', type: 'date', value: n.pripominka,
         hint: 'Poznámka se ten den objeví v kalendáři.' });
-    const v = await UI.form({ title: isNew ? (n.udalostId ? 'Poznámka k návštěvě' : 'Nová poznámka') : 'Upravit poznámku', fields });
+    const v = await UI.form({
+      title: isNew ? (n.udalostId ? 'Poznámka k návštěvě' : 'Nová poznámka') : 'Upravit poznámku', fields,
+      validate: (vals) => (vals.text.trim() || vals.stitky.length ? '' : 'Napiš poznámku nebo vyber štítek.'),
+    });
     if (!v) return null;
     const out = Object.assign({}, n, v, { type: 'poznamka' });
     if (!v.pripominka) out.pripominkaHotova = false;

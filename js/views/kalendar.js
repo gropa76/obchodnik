@@ -54,8 +54,40 @@
       h('h2', { text: 'Poznámky dne' }),
       notes.length ? h('ul', { class: 'list' }, notes.map((n) => noteItem(n))) : UI.empty('Žádné poznámky.'));
 
-    return h('section', { class: 'view' }, head, UI.segmented('den', iso), addRow, remSection, plan, notesSection);
+    return h('section', { class: 'view' }, head, UI.segmented('den', iso), addRow, remSection, plan, naRadeSection(iso), notesSection);
   };
+
+  // Návrh: podniky z oblasti dne, které jsou podle frekvence na řadě.
+  function naRadeSection(iso) {
+    const items = M.naRade(iso);
+    if (!items.length) return null;
+    const pridat = async (list) => {
+      let poradi = M.dalsiPoradi(iso);
+      for (let i = 0; i < list.length; i++) {
+        await S.save({ type: 'udalost', typ: 'navsteva', podnikId: list[i].p.id, datum: iso, stav: 'planovano', poradi: poradi++ },
+          { silent: i < list.length - 1 });
+      }
+      UI.toast(list.length === 1 ? list[0].p.nazev + ' přidán do plánu' : `Přidáno ${list.length} návštěv`);
+    };
+    return h('section', { class: 'block' },
+      h('div', { class: 'block-head' },
+        h('h2', { text: `Na řadě podle frekvence (${items.length})` }),
+        items.length > 1 ? h('button', { class: 'btn small', text: 'Vše do plánu', onclick: run(() => pridat(items)) }) : null),
+      h('ul', { class: 'list card-list' }, items.map((it) => {
+        const f = M.FREKVENCE[it.p.frekvence];
+        const last = M.posledniNavsteva(it.p.id);
+        const info = it.nikdy
+          ? 'zatím bez návštěvy'
+          : `naposledy ${U.formatDate(last)} · ${f.short}`;
+        return h('li', { class: 'item' },
+          h('div', { class: 'item-body' },
+            h('a', { class: 'item-title', href: '#/podnik/' + it.p.id, text: it.p.nazev }),
+            h('span', { class: 'muted small' }, info + (it.p.adresa ? ' · ' + it.p.adresa : '')),
+            UI.specialyChips(it.p, iso),
+            it.over > 0 ? h('span', null, UI.chip(`propadlo ${it.over} ${U.plural(it.over, 'den', 'dny', 'dní')}`, 'hot')) : null),
+          h('button', { class: 'btn small primary', text: '+ Do plánu', onclick: run(() => pridat([it])) }));
+      })));
+  }
 
   function reminderItem(n, late) {
     const p = M.podnik(n.podnikId);
@@ -69,7 +101,8 @@
           }),
         }),
         h('span', { class: 'item-body' },
-          h('span', { class: 'item-text', text: n.text }),
+          UI.noteTags(n),
+          n.text ? h('span', { class: 'item-text', text: n.text }) : null,
           h('span', { class: 'muted small' },
             late ? h('span', { class: 'chip hot', text: 'po termínu · ' + U.formatDate(n.pripominka) }) : null,
             p ? ' ' + p.nazev : ''))));
@@ -79,7 +112,8 @@
     const p = M.podnik(n.podnikId);
     return h('li', { class: 'item' },
       h('div', { class: 'item-body' },
-        h('p', { class: 'item-text', text: n.text }),
+        UI.noteTags(n),
+        n.text ? h('p', { class: 'item-text', text: n.text }) : null,
         h('p', { class: 'muted small' },
           p ? h('a', { href: '#/podnik/' + p.id, text: p.nazev }) : null,
           n.pripominka ? h('span', { class: 'chip', text: (n.pripominkaHotova ? 'vyřízeno ' : 'připomenout ') + U.formatDate(n.pripominka) }) : null)),
@@ -141,14 +175,15 @@
         h('div', { class: 'event-body' },
           p ? h('a', { class: 'event-title', href: '#/podnik/' + p.id, text: title }) : h('span', { class: 'event-title', text: title }),
           sub ? h('span', { class: 'muted small', text: sub }) : null,
-          e.stav === 'odpadlo' ? h('span', { class: 'muted small', text: 'Odpadlo' }) : null),
+          e.stav === 'odpadlo' ? h('span', { class: 'muted small', text: 'Odpadlo' }) : null,
+          p && e.stav === 'planovano' ? UI.specialyChips(p, e.datum) : null),
         e.stav === 'planovano'
           ? h('button', { class: 'btn small ghost', text: 'Upravit', onclick: run(() => A.upravitUdalost(e)) })
           : null),
       notes.length
         ? h('ul', { class: 'event-notes' }, notes.map((n) =>
           h('li', null,
-            h('span', { text: n.text }),
+            h('span', null, UI.noteTags(n), n.text ? ' ' + n.text : ''),
             n.pripominka ? h('span', { class: 'chip', text: 'připomenout ' + U.formatDate(n.pripominka) }) : null,
             h('button', { class: 'btn small ghost', text: 'Upravit', onclick: run(() => A.upravitPoznamku(n)) }))))
         : null,
