@@ -181,6 +181,7 @@
             id, name: f.name, type: f.type || 'text', required: f.required, placeholder: f.placeholder,
             autocomplete: f.autocomplete || (f.type === 'password' ? 'off' : null), value: f.value == null ? '' : f.value,
             minlength: f.minlength, spellcheck: f.type === 'password' ? 'false' : null,
+            inputmode: f.inputmode, maxlength: f.maxlength,
           });
         }
         inputs[f.name] = input;
@@ -319,7 +320,6 @@
         { name: 'frekvence', label: 'Frekvence návštěv', type: 'select', options: frekvenceOptions(), value: p.frekvence || '' },
         { name: 'kontakt', label: 'Kontaktní osoba', value: p.kontakt },
         { name: 'telefon', label: 'Telefon', type: 'tel', value: p.telefon },
-        { name: 'crm', label: 'Číslo zákazníka v CRM', value: p.crm },
         App.model.specialy().length
           ? { name: 'specialy', label: 'Speciály, které podniku nabízíš', type: 'checkboxes',
             options: App.model.specialy().map((s) => ({ value: s.id, label: `${s.nazev} (${U.formatMD(s.od)} – ${U.formatMD(s.do)})` })),
@@ -328,7 +328,9 @@
       ].filter(Boolean),
     });
     if (!v) return null;
-    const saved = await App.store.save(Object.assign({}, p, v, { type: 'podnik' }));
+    const out = Object.assign({}, p, v, { type: 'podnik' });
+    delete out.crm; // číslo z CRM se už neukládá – při uložení se smaže i staré
+    const saved = await App.store.save(out);
     UI.toast(isNew ? 'Podnik přidán' : 'Uloženo');
     return saved;
   };

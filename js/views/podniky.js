@@ -180,8 +180,8 @@
         UI.chip(f ? f.label : 'Bez frekvence', f ? null : 'warn'),
         UI.chip(last ? 'Naposledy ' + U.formatDate(last) : 'Zatím bez návštěvy'),
         M.propadlo(p) ? UI.chip(`propadlo ${M.propadlo(p)} dní`, 'hot') : null),
-      p.kontakt || p.telefon || p.crm
-        ? h('p', { class: 'muted' }, [p.kontakt, p.telefon, p.crm ? 'CRM ' + p.crm : null].filter(Boolean).join(' · '))
+      p.kontakt || p.telefon
+        ? h('p', { class: 'muted' }, [p.kontakt, p.telefon].filter(Boolean).join(' · '))
         : null,
       h('div', { class: 'toolbar' },
         h('button', { class: 'btn primary', text: 'Naplánovat návštěvu', onclick: run(() => A.naplanovatNavstevu(M.dalsiDenProPodnik(p.id, U.addDays(today, -1)), p.id)) }),

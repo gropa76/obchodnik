@@ -2,7 +2,7 @@
 // Service worker: appka se načte i bez internetu.
 // Ukládá jen soubory appky, nikdy data (ta jsou zašifrovaná v IndexedDB).
 // Při každé změně souborů zvyš číslo verze, aby se načetly nové.
-const VERSION = 'obchodnik-v0.5.0';
+const VERSION = 'obchodnik-v0.7.0';
 const FILES = [
   './',
   'index.html',
@@ -10,6 +10,7 @@ const FILES = [
   'css/app.css',
   'js/util.js',
   'js/crypto.js',
+  'js/bio.js',
   'js/db.js',
   'js/store.js',
   'js/model.js',

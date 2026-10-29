@@ -96,6 +96,7 @@
     } catch (e) {
       console.error(e);
     }
+    App.bioSupported = await App.bio.supported();
     V.lock();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
       navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service worker:', e));

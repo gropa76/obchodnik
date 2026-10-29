@@ -147,6 +147,22 @@
       h('section', { class: 'block' },
         h('h2', { text: 'Zabezpečení' }),
         h('div', { class: 'card settings' },
+          (() => {
+            const q = App.quick || {};
+            return [
+              h('div', { class: 'setting-row' },
+                h('span', null, 'Odemykání PINem', h('br'), h('span', { class: 'muted small', text: q.pin ? 'zapnuto' : 'vypnuto' })),
+                h('span', { class: 'row-actions' },
+                  h('button', { class: 'btn small' + (q.pin ? '' : ' primary'), text: q.pin ? 'Změnit PIN' : 'Nastavit PIN', onclick: run(() => V.nastavitPin()) }),
+                  q.pin ? h('button', { class: 'btn small ghost', text: 'Vypnout', onclick: run(() => V.vypnoutRychle('pin')) }) : null)),
+              h('div', { class: 'setting-row' },
+                h('span', null, 'Odemykání otiskem prstu', h('br'),
+                  h('span', { class: 'muted small', text: q.bio ? 'zapnuto' : App.bioSupported ? 'vypnuto' : 'toto zařízení nepodporuje' })),
+                h('span', { class: 'row-actions' },
+                  !q.bio && App.bioSupported ? h('button', { class: 'btn small primary', text: 'Zapnout', onclick: run(() => V.zapnoutOtisk()) }) : null,
+                  q.bio ? h('button', { class: 'btn small ghost', text: 'Vypnout', onclick: run(() => V.vypnoutRychle('bio')) }) : null)),
+            ];
+          })(),
           h('label', { class: 'setting-row' },
             h('span', { text: 'Automaticky zamknout po nečinnosti' }),
             h('select', {
@@ -170,6 +186,6 @@
         h('div', { class: 'card prose' },
           h('p', { text: 'Data jsou zašifrovaná a uložená jen v tomto prohlížeči na tomto počítači. Nic se neposílá na internet.' }),
           h('p', { text: 'Pozor: když v prohlížeči smažeš data webů (historii včetně „souborů cookie a dat webů“) pro adresu appky, data appky zmizí. Šifrovaná záloha přijde v další fázi.' }),
-          h('p', { class: 'muted small', text: 'Verze 0.5 · fáze 1' }))));
+          h('p', { class: 'muted small', text: 'Verze 0.7 · fáze 1' }))));
   };
 })(window.App);

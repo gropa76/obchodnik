@@ -2,7 +2,7 @@
 // Práce s daty: podniky, oblasti, události v kalendáři, poznámky.
 //
 // oblast:   { type:'oblast', nazev, dny:[1..7] }
-// podnik:   { type:'podnik', nazev, adresa, oblastId, frekvence:'A'|'B'|'C'|'', kontakt, telefon, crm }
+// podnik:   { type:'podnik', nazev, adresa, oblastId, frekvence:'A'|'B'|'C'|'', kontakt, telefon, specialy, nabidnuto, sudy }
 // udalost:  { type:'udalost', typ:'navsteva'|'schuzka'|'akce', nazev, datum, cas, podnikId, stav:'planovano'|'hotovo'|'odpadlo', poradi }
 // poznamka: { type:'poznamka', text, datum, podnikId, udalostId, pripominka, pripominkaHotova }
 (function (App) {

@@ -294,3 +294,7 @@ button.chip.special:hover { background: #F7DCC4; }
 .special-row .item-body { gap: 4px; }
 .special-row { flex-wrap: wrap; align-items: center; }
 .special-row .item-body { flex: 1 1 100%; }
+
+/* ---------- PIN ---------- */
+.pin-input { width: 100%; min-height: 56px; text-align: center; font-size: 28px; letter-spacing: .6em; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); }
+.row-actions { display: flex; gap: 4px; flex-shrink: 0; }

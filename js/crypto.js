@@ -121,5 +121,56 @@
     return rewrapPassword(keys, dek, newPassword);
   };
 
+  // ---------- Rychlé odemčení (PIN, otisk) ----------
+  // Datový klíč (DEK) se pro rychlé odemčení uloží znovu zabalený:
+  // - PIN: AES klíčem z PINu (PBKDF2) a navíc neexportovatelným klíčem tohoto zařízení.
+  // - Otisk: klíčem, který vydá čip telefonu přes WebAuthn PRF až po ověření otiskem.
+  const PIN_ITER = 150000;
+
+  const encBytes = async (key, bytes) => {
+    const iv = C.rand(12);
+    const ct = await subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
+    return { iv: C.b64(iv), ct: C.b64(ct) };
+  };
+  const decBytes = async (key, rec) =>
+    new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: C.unb64(rec.iv) }, key, C.unb64(rec.ct)));
+
+  const deriveAes = async (secret, saltB64, iter) => {
+    const base = await subtle.importKey('raw', te.encode(secret), 'PBKDF2', false, ['deriveKey']);
+    return subtle.deriveKey(
+      { name: 'PBKDF2', salt: C.unb64(saltB64), iterations: iter, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  };
+
+  // Neexportovatelný klíč zařízení (uložený v IndexedDB, nejde z prohlížeče vytáhnout).
+  C.newDeviceKey = () => subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+
+  // Surový datový klíč – jen po ověření hlavního hesla, jen na chvíli v paměti.
+  C.dekRawFromPassword = async (keys, password) => {
+    const dek = await unwrap(keys.wrapP, await C.deriveKek(password, keys.saltP, keys.iter), true);
+    return new Uint8Array(await subtle.exportKey('raw', dek));
+  };
+  C.importDek = (raw) => subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+
+  C.wrapForPin = async (dekRaw, pin, deviceKey) => {
+    const salt = C.b64(C.rand(16));
+    const inner = await encBytes(await deriveAes(pin, salt, PIN_ITER), dekRaw);
+    const outer = await encBytes(deviceKey, C.unb64(inner.ct));
+    return { v: 1, salt, iter: PIN_ITER, ivIn: inner.iv, ivOut: outer.iv, ct: outer.ct };
+  };
+  // Při špatném PINu vyhodí chybu.
+  C.openWithPin = async (w, pin, deviceKey) => {
+    const innerCt = await decBytes(deviceKey, { iv: w.ivOut, ct: w.ct });
+    const raw = await decBytes(await deriveAes(pin, w.salt, w.iter), { iv: w.ivIn, ct: C.b64(innerCt) });
+    try { return await C.importDek(raw); } finally { raw.fill(0); }
+  };
+
+  const bioKey = (secret) => subtle.importKey('raw', secret, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  C.wrapForBio = async (dekRaw, secret) => encBytes(await bioKey(secret), dekRaw);
+  C.openWithBio = async (w, secret) => {
+    const raw = await decBytes(await bioKey(secret), w);
+    try { return await C.importDek(raw); } finally { raw.fill(0); }
+  };
+
   App.crypto = C;
 })(window.App);
