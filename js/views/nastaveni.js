@@ -112,6 +112,16 @@
           : UI.empty('Zatím žádné oblasti. Založ je a přiřaď jim dny v týdnu, např. Oblast 1 = pondělí.')),
 
       h('section', { class: 'block' },
+        h('h2', { text: 'Podniky z Excelu' }),
+        h('div', { class: 'card settings' },
+          h('div', { class: 'setting-row' },
+            h('span', null, 'Import podniků', h('br'), h('span', { class: 'muted small', text: 'vložení z Excelu nebo soubor CSV' })),
+            h('a', { class: 'btn small primary', href: '#/import', text: 'Importovat' })),
+          h('div', { class: 'setting-row' },
+            h('span', null, 'Export do Excelu', h('br'), h('span', { class: 'muted small', text: 'v Podnicích – exportuje vyfiltrované podniky' })),
+            h('a', { class: 'btn small', href: '#/podniky', text: 'Otevřít Podniky' })))),
+
+      h('section', { class: 'block' },
         h('div', { class: 'block-head' },
           h('h2', { text: 'Speciály' }),
           h('button', { class: 'btn small primary', text: '+ Speciál', onclick: run(() => upravitSpecial(null)) })),
@@ -186,6 +196,6 @@
         h('div', { class: 'card prose' },
           h('p', { text: 'Data jsou zašifrovaná a uložená jen v tomto prohlížeči na tomto počítači. Nic se neposílá na internet.' }),
           h('p', { text: 'Pozor: když v prohlížeči smažeš data webů (historii včetně „souborů cookie a dat webů“) pro adresu appky, data appky zmizí. Šifrovaná záloha přijde v další fázi.' }),
-          h('p', { class: 'muted small', text: 'Verze 0.7 · fáze 1' }))));
+          h('p', { class: 'muted small', text: 'Verze 0.8 · fáze 1' }))));
   };
 })(window.App);

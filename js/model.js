@@ -2,7 +2,7 @@
 // Práce s daty: podniky, oblasti, události v kalendáři, poznámky.
 //
 // oblast:   { type:'oblast', nazev, dny:[1..7] }
-// podnik:   { type:'podnik', nazev, adresa, oblastId, frekvence:'A'|'B'|'C'|'', kontakt, telefon, specialy, nabidnuto, sudy }
+// podnik:   { type:'podnik', nazev, obec, adresa, oblastId, frekvence:'A'|'B'|'C'|'', velkosklad, piva:[druh], kontakt, telefon, specialy, nabidnuto, sudy }
 // udalost:  { type:'udalost', typ:'navsteva'|'schuzka'|'akce', nazev, datum, cas, podnikId, stav:'planovano'|'hotovo'|'odpadlo', poradi }
 // poznamka: { type:'poznamka', text, datum, podnikId, udalostId, pripominka, pripominkaHotova }
 (function (App) {
@@ -18,6 +18,32 @@
   M.TYP_UDALOSTI = { navsteva: 'Návštěva', schuzka: 'Schůzka', akce: 'Akce' };
 
   const byName = (a, b) => (a.nazev || '').localeCompare(b.nazev || '', 'cs');
+
+  M.DRUHY_PIVA = ['10° světlá', '11°', '12°', '12° polotmavá', '12° Lavina', '12° černá', '12° nefiltr', 'Nealko Grep', 'Nealko švestka', 'Nealko Free'];
+
+  // Kde podnik je – pro zobrazení (adresa, případně jen obec).
+  M.misto = (p) => {
+    if (!p) return '';
+    const a = (p.adresa || '').trim();
+    const o = (p.obec || '').trim();
+    if (a && o && !U.normalize(a).includes(U.normalize(o))) return `${a}, ${o}`;
+    return a || o;
+  };
+  // Co hledat v mapě: adresa, bez ní „název, obec“.
+  M.navigace = (p) => ((p.adresa || '').trim() ? M.misto(p) : [p.nazev, p.obec].filter(Boolean).join(', '));
+
+  // Velkosklady, které už jsou zadané (pro našeptávání a filtr).
+  M.velkosklady = () => {
+    const seen = new Map();
+    for (const p of S.list('podnik')) {
+      const v = (p.velkosklad || '').trim();
+      if (v && !seen.has(U.normalize(v))) seen.set(U.normalize(v), v);
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, 'cs'));
+  };
+
+  // Klíč pro hledání duplicit při importu: název + obec bez diakritiky a mezer navíc.
+  M.klicPodniku = (nazev, obec) => U.normalize(nazev).replace(/\s+/g, ' ').trim() + '|' + U.normalize(obec).replace(/\s+/g, ' ').trim();
 
   M.oblasti = () => S.list('oblast').sort(byName);
   M.oblast = (id) => S.get(id);

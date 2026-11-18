@@ -10,31 +10,54 @@
   const run = UI.run;
 
   // Stav filtrů zůstává při překreslení.
-  const state = { q: '', oblast: '', jenNedoplnene: false, razeni: 'nazev' };
+  const state = { q: '', oblast: '', velkosklad: '', pivo: '', jenNedoplnene: false, razeni: 'nazev' };
 
   const popis = (p) => {
     const o = M.oblast(p.oblastId);
     const f = M.FREKVENCE[p.frekvence];
     const last = M.posledniNavsteva(p.id);
-    return [o ? o.nazev : 'bez oblasti', f ? f.short : 'bez frekvence', last ? 'naposledy ' + U.relDays(last) : 'zatím bez návštěvy'].join(' · ');
+    const stejne = o && p.obec && U.normalize(o.nazev) === U.normalize(p.obec);
+    return [p.obec || null, stejne ? null : o ? o.nazev : 'bez oblasti', f ? f.short : 'bez frekvence', last ? 'naposledy ' + U.relDays(last) : 'zatím bez návštěvy']
+      .filter(Boolean).join(' · ');
   };
+
+  // Podniky podle aktuálních filtrů (stejný výběr jde i do exportu).
+  V.podnikyFiltr = () => {
+    const nedoplnene = M.nedoplnene();
+    const q = U.normalize(state.q);
+    let items = M.podniky().filter((p) =>
+      (!q || U.normalize([p.nazev, p.obec, p.adresa, p.velkosklad, p.kontakt].join(' ')).includes(q)) &&
+      (!state.oblast || (state.oblast === '-' ? !M.oblast(p.oblastId) : p.oblastId === state.oblast)) &&
+      (!state.velkosklad || (state.velkosklad === '-' ? !(p.velkosklad || '').trim() : U.normalize(p.velkosklad) === U.normalize(state.velkosklad))) &&
+      (!state.pivo || (state.pivo === '-' ? !(p.piva || []).length : (p.piva || []).includes(state.pivo))) &&
+      (!state.jenNedoplnene || nedoplnene.includes(p)));
+    if (state.razeni === 'navsteva') {
+      items = items.slice().sort((a, b) => (M.posledniNavsteva(a.id) || '').localeCompare(M.posledniNavsteva(b.id) || ''));
+    } else if (state.razeni === 'obec') {
+      items = items.slice().sort((a, b) => (a.obec || '').localeCompare(b.obec || '', 'cs') || a.nazev.localeCompare(b.nazev, 'cs'));
+    }
+    return items;
+  };
+
+  // Popis aktivních filtrů (pro export).
+  V.podnikyFiltrPopis = () => [
+    state.oblast ? (state.oblast === '-' ? 'bez oblasti' : (M.oblast(state.oblast) || {}).nazev) : null,
+    state.velkosklad ? (state.velkosklad === '-' ? 'bez velkoskladu' : state.velkosklad) : null,
+    state.pivo ? (state.pivo === '-' ? 'bez druhu piva' : state.pivo) : null,
+    state.q ? '„' + state.q + '“' : null,
+  ].filter(Boolean);
 
   V.podniky = () => {
     const all = M.podniky();
     const nedoplnene = M.nedoplnene();
     const listEl = h('ul', { class: 'list card-list' });
     const countEl = h('span', { class: 'muted small' });
+    const exportBtn = h('button', { class: 'btn small', text: 'Export do Excelu', onclick: run(() => App.io.exportPodniku(V.podnikyFiltr(), V.podnikyFiltrPopis())) });
 
     const render = () => {
-      const q = U.normalize(state.q);
-      let items = all.filter((p) =>
-        (!q || U.normalize(p.nazev + ' ' + p.adresa + ' ' + (p.kontakt || '')).includes(q)) &&
-        (!state.oblast || (state.oblast === '-' ? !M.oblast(p.oblastId) : p.oblastId === state.oblast)) &&
-        (!state.jenNedoplnene || nedoplnene.includes(p)));
-      if (state.razeni === 'navsteva') {
-        items = items.slice().sort((a, b) => (M.posledniNavsteva(a.id) || '').localeCompare(M.posledniNavsteva(b.id) || ''));
-      }
+      const items = V.podnikyFiltr();
       countEl.textContent = `${items.length} z ${all.length}`;
+      exportBtn.disabled = !items.length;
       listEl.replaceChildren(...(items.length
         ? items.map((p) => {
           const over = M.propadlo(p);
@@ -42,36 +65,50 @@
             h('a', { class: 'row-link', href: '#/podnik/' + p.id },
               h('span', { class: 'item-body' },
                 h('span', { class: 'item-title', text: p.nazev }),
-                h('span', { class: 'muted small', text: popis(p) })),
+                h('span', { class: 'muted small', text: popis(p) }),
+                (p.piva || []).length ? h('span', { class: 'tags' }, p.piva.map((d) => UI.chip(d, 'beer'))) : null),
               M.specialyKNabidnuti(p, U.today()).length ? UI.chip('speciál', 'special') : null,
               over ? UI.chip(`propadlo ${over} ${U.plural(over, 'den', 'dny', 'dní')}`, 'hot') : null));
         })
-        : [h('li', null, UI.empty(all.length ? 'Nic neodpovídá filtru.' : 'Zatím žádné podniky. Přidej první – stačí název a adresa.'))]));
+        : [h('li', null, UI.empty(all.length ? 'Nic neodpovídá filtru.' : 'Zatím žádné podniky. Přidej první, nebo je naimportuj z Excelu.'))]));
     };
 
     const head = UI.viewHead('Podniky', null, [
+      h('a', { class: 'btn', href: '#/import', text: 'Import z Excelu' }),
       h('button', { class: 'btn primary', text: '+ Přidat podnik', onclick: run(async () => {
         const p = await A.upravitPodnik(null);
         if (p) U.go('#/podnik/' + p.id);
       }) }),
     ]);
 
+    const sel = (label, key, opts) => h('label', { class: 'select-inline' },
+      h('span', { class: 'sr-only', text: label }),
+      h('select', { onchange: (e) => { state[key] = e.target.value; render(); }, value: state[key] }, opts));
+
+    const velkosklady = M.velkosklady();
     const filters = h('div', { class: 'filters' },
       h('label', { class: 'search' },
         h('span', { class: 'sr-only', text: 'Hledat' }),
-        h('input', { type: 'search', placeholder: 'Hledat název, adresu, kontakt', value: state.q,
+        h('input', { type: 'search', placeholder: 'Hledat název, obec, velkosklad', value: state.q,
           oninput: (e) => { state.q = e.target.value; render(); } })),
-      h('label', { class: 'select-inline' },
-        h('span', { class: 'sr-only', text: 'Oblast' }),
-        h('select', { onchange: (e) => { state.oblast = e.target.value; render(); }, value: state.oblast },
-          h('option', { value: '', text: 'Všechny oblasti' }),
-          M.oblasti().map((o) => h('option', { value: o.id, text: o.nazev })),
-          h('option', { value: '-', text: 'Bez oblasti' }))),
-      h('label', { class: 'select-inline' },
-        h('span', { class: 'sr-only', text: 'Řazení' }),
-        h('select', { onchange: (e) => { state.razeni = e.target.value; render(); }, value: state.razeni },
-          h('option', { value: 'nazev', text: 'Podle názvu' }),
-          h('option', { value: 'navsteva', text: 'Nejdéle bez návštěvy' }))));
+      sel('Oblast', 'oblast', [
+        h('option', { value: '', text: 'Všechny oblasti' }),
+        M.oblasti().map((o) => h('option', { value: o.id, text: o.nazev })),
+        h('option', { value: '-', text: 'Bez oblasti' })]),
+      sel('Druh piva', 'pivo', [
+        h('option', { value: '', text: 'Všechny druhy piva' }),
+        M.DRUHY_PIVA.map((d) => h('option', { value: d, text: d })),
+        h('option', { value: '-', text: 'Bez druhu piva' })]),
+      sel('Velkosklad', 'velkosklad', [
+        h('option', { value: '', text: 'Všechny velkosklady' }),
+        velkosklady.map((v) => h('option', { value: v, text: v })),
+        h('option', { value: '-', text: 'Bez velkoskladu' })]),
+      sel('Řazení', 'razeni', [
+        h('option', { value: 'nazev', text: 'Podle názvu' }),
+        h('option', { value: 'obec', text: 'Podle obce' }),
+        h('option', { value: 'navsteva', text: 'Nejdéle bez návštěvy' })]));
+    // Velkosklad z filtru mohl mezitím zmizet.
+    if (state.velkosklad && state.velkosklad !== '-' && !velkosklady.some((v) => U.normalize(v) === U.normalize(state.velkosklad))) state.velkosklad = '';
 
     const notice = nedoplnene.length
       ? h('button', {
@@ -84,7 +121,8 @@
       : null;
 
     render();
-    return h('section', { class: 'view' }, head, filters, notice, h('div', { class: 'block-head' }, h('span'), countEl), listEl);
+    return h('section', { class: 'view' }, head, filters, notice,
+      h('div', { class: 'block-head' }, countEl, exportBtn), listEl);
   };
 
   // Počet odebraných sudů za sezónu (rok jde změnit, např. dopsat loňský).
@@ -172,7 +210,7 @@
 
     return h('section', { class: 'view' },
       h('a', { class: 'back', href: '#/podniky', text: '‹ Podniky' }),
-      UI.viewHead(p.nazev, p.adresa, [
+      UI.viewHead(p.nazev, M.misto(p), [
         h('button', { class: 'btn', text: 'Upravit', onclick: run(() => A.upravitPodnik(p)) }),
       ]),
       h('div', { class: 'chips' },
@@ -180,13 +218,16 @@
         UI.chip(f ? f.label : 'Bez frekvence', f ? null : 'warn'),
         UI.chip(last ? 'Naposledy ' + U.formatDate(last) : 'Zatím bez návštěvy'),
         M.propadlo(p) ? UI.chip(`propadlo ${M.propadlo(p)} dní`, 'hot') : null),
-      p.kontakt || p.telefon
-        ? h('p', { class: 'muted' }, [p.kontakt, p.telefon].filter(Boolean).join(' · '))
-        : null,
+      h('dl', { class: 'facts' },
+        h('dt', { text: 'Velkosklad' }), h('dd', { text: p.velkosklad || '—' }),
+        h('dt', { text: 'Druh piva' }), h('dd', null, (p.piva || []).length
+          ? h('span', { class: 'tags' }, p.piva.map((d) => UI.chip(d, 'beer')))
+          : h('span', { class: 'muted', text: 'nezadáno' })),
+        p.kontakt || p.telefon ? [h('dt', { text: 'Kontakt' }), h('dd', { text: [p.kontakt, p.telefon].filter(Boolean).join(' · ') })] : null),
       h('div', { class: 'toolbar' },
         h('button', { class: 'btn primary', text: 'Naplánovat návštěvu', onclick: run(() => A.naplanovatNavstevu(M.dalsiDenProPodnik(p.id, U.addDays(today, -1)), p.id)) }),
         h('button', { class: 'btn', text: '+ Poznámka', onclick: run(() => A.upravitPoznamku(null, { datum: today, podnikId: p.id })) }),
-        p.adresa ? h('a', { class: 'btn', href: U.mapHref(p.adresa), target: '_blank', rel: 'noopener noreferrer', text: 'Navigovat' }) : null,
+        M.navigace(p) ? h('a', { class: 'btn', href: U.mapHref(M.navigace(p)), target: '_blank', rel: 'noopener noreferrer', text: 'Navigovat' }) : null,
         p.telefon ? h('a', { class: 'btn', href: U.telHref(p.telefon), text: 'Zavolat' }) : null),
 
       specialySection(p),

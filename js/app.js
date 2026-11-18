@@ -13,6 +13,7 @@
     [/^#\/mesic\/(\d{4}-\d{2})$/, (m) => V.mesic(m[1]), 'kalendar'],
     [/^#\/podniky$/, () => V.podniky(), 'podniky'],
     [/^#\/podnik\/([\w-]+)$/, (m) => V.podnik(m[1]), 'podniky'],
+    [/^#\/import$/, () => V.importPodniku(), 'podniky'],
     [/^#\/poznamky$/, () => V.poznamky(), 'poznamky'],
     [/^#\/nastaveni$/, () => V.nastaveni(), 'nastaveni'],
   ];
@@ -96,7 +97,12 @@
     } catch (e) {
       console.error(e);
     }
-    App.bioSupported = await App.bio.supported();
+    try {
+      App.bioSupported = App.bio ? await App.bio.supported() : false;
+    } catch (e) {
+      App.bioSupported = false;
+    }
+    if (window.__appBroken) return; // chybí soubor – pojistka už ukazuje hlášku
     V.lock();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
       navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service worker:', e));

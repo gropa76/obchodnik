@@ -136,6 +136,7 @@
       const fieldEls = fields.map((f) => {
         const id = 'f-' + f.name;
         let input;
+        let dl = null;
         if (f.type === 'textarea') {
           input = h('textarea', { id, name: f.name, rows: f.rows || 4, required: f.required, placeholder: f.placeholder, value: f.value || '' });
         } else if (f.type === 'select') {
@@ -177,8 +178,12 @@
           inputs[f.name] = input;
           return h('label', { class: 'field check-row' }, input, h('span', { text: f.label }));
         } else {
+          dl = f.suggest && f.suggest.length
+            ? h('datalist', { id: id + '-dl' }, f.suggest.map((x) => h('option', { value: x })))
+            : null;
           input = h('input', {
             id, name: f.name, type: f.type || 'text', required: f.required, placeholder: f.placeholder,
+            list: dl ? id + '-dl' : null,
             autocomplete: f.autocomplete || (f.type === 'password' ? 'off' : null), value: f.value == null ? '' : f.value,
             minlength: f.minlength, spellcheck: f.type === 'password' ? 'false' : null,
             inputmode: f.inputmode, maxlength: f.maxlength,
@@ -187,7 +192,7 @@
         inputs[f.name] = input;
         return h('div', { class: 'field' },
           h('label', { for: id, class: 'label' }, f.label, f.required ? h('span', { class: 'req', 'aria-hidden': 'true', text: ' *' }) : null),
-          input,
+          input, dl,
           f.hint ? h('p', { class: 'hint', text: f.hint }) : null);
       });
 
@@ -311,13 +316,16 @@
     p = p || {};
     const v = await UI.form({
       title: isNew ? 'Nový podnik' : 'Upravit podnik',
-      intro: isNew ? 'Stačí název a adresa. Zbytek doplníš kdykoli.' : null,
+      intro: isNew ? 'Stačí název a obec (nebo adresa). Zbytek doplníš kdykoli.' : null,
       fields: [
         { name: 'nazev', label: 'Název', required: true, value: p.nazev },
-        { name: 'adresa', label: 'Adresa', required: true, value: p.adresa, placeholder: 'Ulice a číslo, obec' },
+        { name: 'obec', label: 'Obec', value: p.obec, placeholder: 'Např. Hodonín' },
+        { name: 'adresa', label: 'Ulice a číslo (nepovinné)', value: p.adresa, placeholder: 'Např. Lipová 12' },
         { name: 'oblastId', label: 'Oblast', type: 'select', options: oblastOptions(), value: p.oblastId || '',
           hint: App.model.oblasti().length ? null : 'Oblasti založíš v Nastavení.' },
         { name: 'frekvence', label: 'Frekvence návštěv', type: 'select', options: frekvenceOptions(), value: p.frekvence || '' },
+        { name: 'velkosklad', label: 'Velkosklad', value: p.velkosklad, suggest: App.model.velkosklady(), placeholder: 'Např. JIP Hodonín' },
+        { name: 'piva', label: 'Druh piva', type: 'checkboxes', options: App.model.DRUHY_PIVA.map((d) => ({ value: d, label: d })), value: p.piva || [] },
         { name: 'kontakt', label: 'Kontaktní osoba', value: p.kontakt },
         { name: 'telefon', label: 'Telefon', type: 'tel', value: p.telefon },
         App.model.specialy().length
@@ -326,9 +334,13 @@
             value: p.specialy || [], hint: 'Každý rok v daném období se připomenou u podniku a v kalendáři.' }
           : null,
       ].filter(Boolean),
+      validate: (x) => (x.obec || x.adresa ? '' : 'Vyplň obec nebo adresu.'),
     });
     if (!v) return null;
     const out = Object.assign({}, p, v, { type: 'podnik' });
+    // Velkosklad sjednotit se stejně pojmenovaným, který už existuje (jen jiná velká písmena).
+    const vs = App.model.velkosklady().find((x) => U.normalize(x) === U.normalize(out.velkosklad || ''));
+    if (vs) out.velkosklad = vs;
     delete out.crm; // číslo z CRM se už neukládá – při uložení se smaže i staré
     const saved = await App.store.save(out);
     UI.toast(isNew ? 'Podnik přidán' : 'Uloženo');
@@ -340,7 +352,7 @@
     const dne = new Set(iso ? App.model.oblastiDne(iso).map((o) => o.id) : []);
     return App.model.podniky().map((p) => {
       const o = App.model.oblast(p.oblastId);
-      return { value: p.id, label: p.nazev, sub: [p.adresa, o ? o.nazev : null].filter(Boolean).join(' · '), first: dne.has(p.oblastId) };
+      return { value: p.id, label: p.nazev, sub: [App.model.misto(p), o ? o.nazev : null].filter(Boolean).join(' · '), first: dne.has(p.oblastId) };
     });
   };
 

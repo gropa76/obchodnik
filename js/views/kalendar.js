@@ -82,7 +82,7 @@
         return h('li', { class: 'item' },
           h('div', { class: 'item-body' },
             h('a', { class: 'item-title', href: '#/podnik/' + it.p.id, text: it.p.nazev }),
-            h('span', { class: 'muted small' }, info + (it.p.adresa ? ' · ' + it.p.adresa : '')),
+            h('span', { class: 'muted small' }, info + (M.misto(it.p) ? ' · ' + M.misto(it.p) : '')),
             UI.specialyChips(it.p, iso),
             it.over > 0 ? h('span', null, UI.chip(`propadlo ${it.over} ${U.plural(it.over, 'den', 'dny', 'dní')}`, 'hot')) : null),
           h('button', { class: 'btn small primary', text: '+ Do plánu', onclick: run(() => pridat([it])) }));
@@ -132,7 +132,7 @@
   function eventCard(e, i, list) {
     const p = M.podnik(e.podnikId);
     const title = M.nazevUdalosti(e);
-    const sub = [e.cas, e.typ !== 'navsteva' ? M.TYP_UDALOSTI[e.typ] : null, p && p.adresa].filter(Boolean).join(' · ');
+    const sub = [e.cas, e.typ !== 'navsteva' ? M.TYP_UDALOSTI[e.typ] : null, p && M.misto(p)].filter(Boolean).join(' · ');
     const badge = e.stav === 'hotovo' ? '✓' : e.stav === 'odpadlo' ? '×' : String(i + 1);
     const setStav = (stav) => run(() => S.save(Object.assign({}, e, { stav })));
     const notes = M.poznamkyUdalosti(e.id);
@@ -142,7 +142,7 @@
       actions = [
         h('button', { class: 'btn primary small', text: 'Hotovo', onclick: setStav('hotovo') }),
         h('button', { class: 'btn small', text: 'Poznámka', onclick: run(() => A.upravitPoznamku(null, { datum: e.datum, podnikId: e.podnikId, udalostId: e.id })) }),
-        p && p.adresa ? h('a', { class: 'btn small', href: U.mapHref(p.adresa), target: '_blank', rel: 'noopener noreferrer', text: 'Navigovat' }) : null,
+        p && M.navigace(p) ? h('a', { class: 'btn small', href: U.mapHref(M.navigace(p)), target: '_blank', rel: 'noopener noreferrer', text: 'Navigovat' }) : null,
         h('span', { class: 'spacer' }),
         i > 0 ? h('button', { class: 'btn small icon', 'aria-label': 'Posunout výš', text: '↑', onclick: run(() => swap(e, list[i - 1])) }) : null,
         i < list.length - 1 ? h('button', { class: 'btn small icon', 'aria-label': 'Posunout níž', text: '↓', onclick: run(() => swap(e, list[i + 1])) }) : null,

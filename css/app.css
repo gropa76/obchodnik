@@ -298,3 +298,26 @@ button.chip.special:hover { background: #F7DCC4; }
 /* ---------- PIN ---------- */
 .pin-input { width: 100%; min-height: 56px; text-align: center; font-size: 28px; letter-spacing: .6em; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); }
 .row-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* ---------- Podnik: velkosklad, piva ---------- */
+.chip.beer { background: #FFF4D6; color: #6B4A00; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.facts dt { color: var(--muted); font-size: 14px; }
+.facts dd { margin: 0; min-width: 0; }
+.block-head .btn:disabled { opacity: .5; cursor: default; }
+
+/* ---------- Import ---------- */
+.import { display: flex; flex-direction: column; gap: 16px; }
+.import textarea { width: 100%; min-height: 160px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); font: 14px/1.4 ui-monospace, Consolas, monospace; resize: vertical; }
+.import select { width: 100%; min-height: 44px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); }
+.import input[type=file] { min-height: 44px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th, .table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.table th { color: var(--muted); font-weight: 500; }
+.table tr:last-child td { border-bottom: none; }
+@media (max-width: 720px) {
+  .filters .search { flex: 1 1 100%; }
+  .filters .select-inline { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .filters .select-inline select { min-width: 0; text-overflow: ellipsis; }
+}
